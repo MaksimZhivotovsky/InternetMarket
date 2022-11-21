@@ -1,39 +1,56 @@
 package com.max.exempl.service;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
 
 import com.max.exempl.model.Product;
+import com.max.exempl.repository.ProductRepository;
 
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 @Service
+@RequiredArgsConstructor
 public class ProductService {
-    private List<Product> products = new ArrayList<>();
-    private long ID = 0;
+	
+    private final ProductRepository productRepository;
 
-    {
-        products.add(new Product(++ID, "PlayStation 5", "Simple description", 67000, "Krasnoyarsk", "tomas"));
-        products.add(new Product(++ID, "Iphone 8", "Simple description", 24000, "Moscow", "artmcoder"));
+    public List<Product> listProducts(String title) {
+    	if (title != null) { 
+    		return productRepository.findByTitle(title);
+    	}
+    	log.info("List product {} ", productRepository.findAll());
+    	return productRepository.findAll();
     }
-
-    public List<Product> listProducts() { return products; }
-
-    public void saveProduct(Product product) {
-        product.setId(++ID);
-        products.add(product);
+    
+    public Product saveProduct(Product product) {
+    	log.info("Saveing new {} ", product);
+    	return productRepository.save(product);
     }
-
-    public void deleteProduct(Long id) {
-        products.removeIf(product -> product.getId().equals(id));
+    
+    public Product findById(Long id) {
+    	log.info("Product findById {} ", id);
+    	return productRepository.findById(id).get();
     }
-
-    public Product getProductById(Long id) {
-        for (Product product : products) {
-            if (product.getId().equals(id)) {
-            	return product;
-            }
-        }
-        return null;
+    
+    public Product updateProduct(Product product) {
+    	Product productData = productRepository.findById(product.getId()).get();
+    	if(productData != null) {
+    		productData.setAuthor(product.getAuthor());
+    		productData.setCity(product.getCity());
+    		productData.setDescription(product.getDescription());
+    		productData.setPrice(product.getPrice());
+    		productData.setTitle(product.getTitle());
+    		productRepository.save(productData);
+    	}
+    	log.info("updateProduct {} ", productData);
+    	return productData;
     }
-}
+    
+    public void deleteProductById(Long id) {
+    	log.info("delete Product By Id {} ", id);
+    	productRepository.deleteById(id);
+    }
+ }
