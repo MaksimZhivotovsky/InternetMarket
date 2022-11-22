@@ -1,6 +1,7 @@
 package com.max.exempl.service;
 
 import java.io.IOException;
+import java.security.Principal;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
@@ -8,27 +9,27 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.max.exempl.model.Image;
 import com.max.exempl.model.Product;
+import com.max.exempl.model.User;
 import com.max.exempl.repository.ProductRepository;
+import com.max.exempl.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-@Slf4j
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class ProductService {
-	
     private final ProductRepository productRepository;
+    private final UserRepository userRepository;
 
     public List<Product> listProducts(String title) {
-    	if (title != null) { 
-    		return productRepository.findByTitle(title);
-    	}
-    	log.info("List product {} ", productRepository.findAll());
-    	return productRepository.findAll();
+        if (title != null) return productRepository.findByTitle(title);
+        return productRepository.findAll();
     }
-    
-    public void saveProduct(Product product, MultipartFile file1, MultipartFile file2, MultipartFile file3) throws IOException {
+
+    public void saveProduct(Principal principal, Product product, MultipartFile file1, MultipartFile file2, MultipartFile file3) throws IOException {
+        product.setUser(getUserByPrincipal(principal));
         Image image1;
         Image image2;
         Image image3;
@@ -45,10 +46,15 @@ public class ProductService {
             image3 = toImageEntity(file3);
             product.addImageToProduct(image3);
         }
-        log.info("Saving new Product. Title: {}; Author: {}", product.getTitle(), product.getAuthor());
+        log.info("Saving new Product. Title: {}; Author email: {}", product.getTitle(), product.getUser().getEmail());
         Product productFromDb = productRepository.save(product);
         productFromDb.setPreviewImageId(productFromDb.getImages().get(0).getId());
         productRepository.save(product);
+    }
+
+    public User getUserByPrincipal(Principal principal) {
+        if (principal == null) return new User();
+        return userRepository.findByEmail(principal.getName());
     }
 
     private Image toImageEntity(MultipartFile file) throws IOException {
@@ -61,28 +67,21 @@ public class ProductService {
         return image;
     }
 
-    
-    public Product findById(Long id) {
-    	log.info("Product findById {} ", id);
-    	return productRepository.findById(id).get();
+    public void deleteProduct(User user, Long id) {
+        Product product = productRepository.findById(id)
+                .orElse(null);
+        if (product != null) {
+            if (product.getUser().getId().equals(user.getId())) {
+                productRepository.delete(product);
+                log.info("Product with id = {} was deleted", id);
+            } else {
+                log.error("User: {} haven't this product with id = {}", user.getEmail(), id);
+            }
+        } else {
+            log.error("Product with id = {} is not found", id);
+        }    }
+
+    public Product getProductById(Long id) {
+        return productRepository.findById(id).orElse(null);
     }
-    
-    public Product updateProduct(Product product) {
-    	Product productData = productRepository.findById(product.getId()).get();
-    	if(productData != null) {
-    		productData.setAuthor(product.getAuthor());
-    		productData.setCity(product.getCity());
-    		productData.setDescription(product.getDescription());
-    		productData.setPrice(product.getPrice());
-    		productData.setTitle(product.getTitle());
-    		productRepository.save(productData);
-    	}
-    	log.info("updateProduct {} ", productData);
-    	return productData;
-    }
-    
-    public void deleteProductById(Long id) {
-    	log.info("delete Product By Id {} ", id);
-    	productRepository.deleteById(id);
-    }
- }
+}
